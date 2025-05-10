@@ -1,0 +1,26 @@
+[project]
+name = "medical-agent"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "ipython>=8.36.0",
+    "langchain>=0.3.25",
+    "langchain-huggingface>=0.1.2",
+    "langgraph>=0.4.1",
+    "langgraph-checkpoint-sqlite>=2.0.7",
+    "numpy==1.26.4",
+    "ollama>=0.4.8",
+    "openai>=1.77.0",
+    "pandas>=2.2.3",
+    "pyppeteer>=2.0.0",
+    "ragatouille>=0.0.9",
+    "rank-bm25>=0.2.2",
+    "scikit-learn>=1.6.1",
+    "scispacy>=0.5.5",
+    "sentence-transformers>=4.1.0",
+    "spacy>=3.7.5",
+    "torch>=2.7.0",
+    "transformers==4.49",
+]
