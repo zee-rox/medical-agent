@@ -9,8 +9,7 @@ import torch
 class OllamaLLM():
     def __init__(self, model: str = "llama3.2:3b"):
         self.client = OpenAI(
-            base_url="https://openrouter.ai/api/v1",
-            api_key = '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'
+
         )
         self.model = "deepseek/deepseek-chat-v3-0324:free"
         # self.model = model
