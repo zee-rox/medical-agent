@@ -1,19 +1,17 @@
-from typing import List, Union, Dict, Any, Optional
-import json
+from typing import Optional
 from langgraph.graph import StateGraph, END
-from ollama import chat
 import re
-from langgraph.checkpoint.memory import MemorySaver
 import os
 import datetime
-from IPython.display import Image
-from langchain_core.runnables.graph import CurveStyle, MermaidDrawMethod, NodeStyles
+import base64
+import io
+import requests
+from PIL import Image as im
 
-from src.agent.Models import AgentAction, Plan, AgentState, action_to_message, create_scratchpad
+from src.agent.Models import AgentAction, Plan, AgentState, create_scratchpad
 from src.agent.Planning import execute_planning
-from src.schema.Tools import search_schema, final_answer_schema, xray_detection_schema, system_prompt, get_system_tools_prompt
+from src.schema.Tools import search_schema, final_answer_schema, xray_detection_schema, get_system_tools_prompt
 from src.imaging.DetectXRAY import detect_chest_xray
-from src.agent.Memory import CustomMemorySaver
 from src.models.LoadLLM import llm
 from src.agent.Roles import get_role_prompt, get_role_name
 from src.agent.Reflection import execute_reflection, execute_refinement
@@ -276,60 +274,30 @@ def build_graph() -> StateGraph:
     
     return graph
 
+def ConvertMermaidStringtoGraph(graph, output_path):
+    graphbytes = graph.encode("utf8")
+    base64_bytes = base64.urlsafe_b64encode(graphbytes)
+    base64_string = base64_bytes.decode("ascii")
+    url = 'https://mermaid.ink/img/' + base64_string
 
+    response = requests.get(url)
+
+    if 'image' not in response.headers.get('Content-Type', ''):
+        raise ValueError(f"Expected image, got {response.headers.get('Content-Type')}. Response content: {response.text[:200]}")
+
+    img = im.open(io.BytesIO(response.content))
+    img.save(output_path, dpi=(300, 300))
+    
 def save_graph_visualization(graph, output_dir: str = f"{os.getcwd()}/data/visualizations") -> None:
     """Save the graph visualization to a file"""
     try:
         os.makedirs(output_dir, exist_ok=True)
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         output_path = os.path.join(output_dir, f"graph_visualization_{timestamp}.png")
-        graph.get_graph().draw_mermaid_png(
-            curve_style=CurveStyle.LINEAR,
-            node_colors=NodeStyles(first="#ffdfba", last="#baffc9", default="#fad7de"),
-            wrap_label_n_words=9,
-            output_file_path=output_path,
-            draw_method=MermaidDrawMethod.PYPPETEER,
-            background_color="white",
-            padding=10,
-        )
+        mm_string = graph.get_graph().draw_mermaid()
+        mm_string = re.sub(r'^---[\s\S]+?---\s*', '', mm_string, flags=re.DOTALL)
+        # print(mm_string)
+        graph = ConvertMermaidStringtoGraph(mm_string, output_path)
         print(f"Graph visualization saved to {output_path}")
     except Exception as e:
         print(f"Failed to save graph visualization: {str(e)}")
-
-
-# Compile the graph with persistent memory
-graph = build_graph()
-
-try:
-    # runnable = graph.compile(checkpointer=CustomMemorySaver(filename="./data/agent_memory.json"))
-    runnable = graph.compile(checkpointer=MemorySaver())
-    print("✅ Enhanced graph compiled with custom memory (persistent state).")
-except Exception as e:
-    print(f"⚠ Failed to compile graph with custom memory: {str(e)}")
-    print("⚠ Compiling without persistence.")
-    runnable = graph.compile()
-
-
-def main():
-    """
-    Main function to save the graph visualization when Core.py is executed directly.
-    This allows generating the visualization without running the full application.
-    """
-    print("🔍 Generating LangGraph visualization...")
-    
-    # Create visualizations directory if it doesn't exist
-    project_root = os.getcwd()
-    visualizations_dir = os.path.join(project_root, "data", "visualizations")
-    os.makedirs(visualizations_dir, exist_ok=True)
-    
-    # Save graph visualization
-    save_graph_visualization(runnable, visualizations_dir)
-    
-    print(f"✅ Graph visualization saved in '{visualizations_dir}'.")
-    print("   You can now examine the agent's workflow structure.")
-
-
-# Execute main function when this file is run directly
-if __name__ == "__main__":
-    main()
-    # save_graph_visualization(runnable)

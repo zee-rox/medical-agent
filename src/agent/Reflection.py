@@ -42,7 +42,8 @@ Respond with a JSON object containing:
 - An overall_score (weighted average)
 - An array of specific improvement suggestions
 
-Format your response as valid JSON with these exact keys:
+Format your response as valid JSON with these exact keys. DONT include any other text or explanations.:
+
 {{
   "factual_correctness": float,
   "completeness": float,

@@ -1,47 +1,65 @@
-from src.agent.Core import runnable, AgentState, save_graph_visualization, graph
-from src.reports.TextReport import get_user_query
-from src.imaging.DetectXRAY import detect_chest_xray
+from src.agent.Core import AgentState, build_graph, save_graph_visualization
+from src.reports.TextReport import get_user_query, process_query
+from langgraph.checkpoint.memory import MemorySaver
 from src.utils.DiagnosisExporter import DiagnosisExporter
-from src.reports.CombinedReport import diagnosis_report, diagnosis_data
+from src.reports.CombinedReport import generate_combined_report
 import warnings
 import os
 import datetime
-import datetime
 
 warnings.filterwarnings("ignore")
+
+def build_graph_runnable():
+    # Compile the graph with persistent memory
+    graph = build_graph()
+
+    try:
+        runnable = graph.compile(checkpointer=MemorySaver())
+        print("✅ Enhanced graph compiled with custom memory (persistent state).")
+        return runnable
+    except Exception as e:
+        print(f"⚠ Failed to compile graph with custom memory: {str(e)}")
+        print("⚠ Compiling without persistence.")
+        runnable = graph.compile()
+        return runnable
 
 
 def main():
     print("🏥 Starting Enhanced Medical Agent Application")
     
-    # Create visualizations directory if it doesn't exist
-    visualizations_dir = os.path.join(os.getcwd(), "./data/visualizations")
-    os.makedirs(visualizations_dir, exist_ok=True)
+    runnable = build_graph_runnable()
+    # Save graph visualization
+    save_graph_visualization(runnable)
     
     # Get user query
     user_query = get_user_query()
     
-    # Ask about X-ray image
-    xray_image = input("\n🖼️ Enter chest X-ray image file path (or press Enter to skip): ").strip()
-    xray_results = None
+    # Process the query (to save it in the global state of TextReport)
+    process_query(user_query)
+    
+    # Get patient history ID first (this happens in generate_final_diagnosis)
+    # We're calling this separately to control the flow
+    from src.reports.TextReport import get_patient_history
+    patient_history_text, patient_history_available = get_patient_history()
+    
+    # Now ask about X-ray image
+    from src.reports.ImageReport import get_xray_input
+    xray_image = get_xray_input()
     
     if xray_image:
         try:
-            # Process image and detect chest X-ray findings
-            xray_results = detect_chest_xray(xray_image)
-            xray_context = "Chest X-ray Findings: " + ", ".join(xray_results)
-            print("\n🔍 Chest X-ray Detection Results:")
-            print(xray_context)
-            
-            # Add X-ray context to user query
-            user_query = f"{user_query}\n\nThe chest X-ray shows the following findings: {', '.join(xray_results)}."
+            # Generate the combined report and display it
+            print("\n📋 Generating comprehensive clinical report...")
+            combined_report = generate_combined_report(user_query, xray_image, patient_history_text)
+            print(f"\n📄 Combined Report Summary Length: {len(combined_report)} characters")
+
         except Exception as e:
             print(f"\n⚠️ Error processing X-ray image: {str(e)}")
             print("Continuing without X-ray data...")
     
     # Initialize agent state
     agent_state = AgentState(
-        input=user_query,
+        input=combined_report,
         chat_history=[],
         intermediate_steps=[],
         output={},
@@ -51,10 +69,8 @@ def main():
         agent_outcome=None
     )
     
-    print("\n🚀 Initiating diagnostic workflow...")
-    
-    # Save graph visualization
-    # save_graph_visualization(runnable)
+    print("\n🚀 Initiating diagnostic workflow on the report...")
+
     
     # Run agent
     graph_output = runnable.invoke(agent_state,
@@ -90,12 +106,14 @@ def main():
                 "timestamp": datetime.datetime.now().isoformat()
             }
             
-            # Add combined report data if available
+            # # Generate combined report
             try:
+                
+                # Get diagnosis data from the combined report module
                 from src.reports.CombinedReport import diagnosis_data as combined_diagnosis_data
                 diagnosis_export_data.update(combined_diagnosis_data)
             except (ImportError, AttributeError) as e:
-                print(f"\n⚠️ Could not import combined diagnosis data: {str(e)}")
+                print(f"\n⚠️ Could not generate combined diagnosis report: {str(e)}")
             
             # Export to JSON
             export_path = DiagnosisExporter.export_to_json(

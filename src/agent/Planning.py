@@ -24,11 +24,13 @@ Respond with a JSON object that includes:
 1. "steps" (array): A step-by-step plan for diagnosing this medical case
 2. "reasoning" (string): Your reasoning for this plan structure
 
-The output format MUST be:
-
+The output format MUST be. DONT include any other text or explanations.
 {{
-  "steps": [list of strings],
-  "reasoning": "string"
+  "steps": [
+    "Step 1: ...",
+    "Step 2: ..."
+  ],
+  "reasoning": "This plan is structured to ensure a comprehensive diagnosis."
 }}
 
 Format your response as valid JSON with these exact keys.
