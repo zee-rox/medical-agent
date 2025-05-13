@@ -69,11 +69,6 @@ medical-agent/
 
 ## 🚀 Installation and Setup
 
-### Prerequisites
-
-- Python 3.10 or higher
-- [uv](https://github.com/astral-sh/uv) for dependency management
-
 ### Installation Steps
 
 1. Clone the repository:
@@ -171,16 +166,3 @@ The agent operates in different roles throughout the process, including:
 - Medical Action Agent
 - Medical Quality Reviewer
 - Medical Report Refiner
-
-## 📄 License
-
-[Include your license information here]
-
-## 👥 Contributors
-
-[List contributors here]
-
-## 🙏 Acknowledgements
-
-- The medical knowledge and terminology used in this system comes from public medical resources
-- This project uses several open-source libraries listed in the Technology Stack section
